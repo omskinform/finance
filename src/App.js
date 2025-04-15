@@ -19,6 +19,13 @@ function App() {
   const [interestRate, setInterestRate] = useState(10);
   const [years, setYears] = useState(0);
   const [chartData, setChartData] = useState([]);
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     calculateYears();
@@ -78,11 +85,12 @@ function App() {
               dataKey="year"
               tick={{ fontSize: 12 }}
               tickFormatter={(tick) => `${tick} г.`}
+              interval={screenWidth < 500 ? 4 : 0}
             />
             <YAxis
               tick={{ fontSize: 12 }}
               tickFormatter={(tick) => formatNumber(tick)}
-		width={80}
+              width={80}
             />
             <Tooltip
               formatter={(value) => formatNumber(value) + ' ₽'}
