@@ -14,24 +14,37 @@ function formatNumber(num) {
 }
 
 function App() {
-  const [monthly, setMonthly] = useState(20000);
-  const [goal, setGoal] = useState(1000000);
-  const [interestRate, setInterestRate] = useState(10);
+  // Изменено: начальные значения как строки
+  const [monthly, setMonthly] = useState('20000');
+  const [goal, setGoal] = useState('1000000');
+  const [interestRate, setInterestRate] = useState('10');
   const [years, setYears] = useState(0);
   const [chartData, setChartData] = useState([]);
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     calculateYears();
   }, [monthly, goal, interestRate]);
 
   const calculateYears = () => {
+    // Преобразование строк в числа с обработкой пустых значений
+    const monthlyNum = monthly === '' ? 0 : Number(monthly);
+    const goalNum = goal === '' ? 0 : Number(goal);
+    const interestRateNum = interestRate === '' ? 0 : Number(interestRate);
+
     let total = 0;
     let year = 0;
-    let rate = interestRate / 100;
+    let rate = interestRateNum / 100;
     let data = [];
 
-    while (total < goal && year < 100) {
-      total = (total + monthly * 12) * (1 + rate);
+    while (total < goalNum && year < 100) {
+      total = (total + monthlyNum * 12) * (1 + rate);
       data.push({ year: year + 1, amount: Math.round(total) });
       year++;
     }
@@ -47,7 +60,8 @@ function App() {
         <input
           type="number"
           value={monthly}
-          onChange={(e) => setMonthly(Number(e.target.value))}
+          onChange={(e) => setMonthly(e.target.value)}
+          onFocus={(e) => e.target.select()}
         />
       </div>
       <div className="input-group">
@@ -55,16 +69,17 @@ function App() {
         <input
           type="number"
           value={interestRate}
-          onChange={(e) => setInterestRate(Number(e.target.value))}
+          onChange={(e) => setInterestRate(e.target.value)}
+          onFocus={(e) => e.target.select()}
         />
       </div>
       <div className="input-group">
         <label>Стоимость цели (₽):</label>
         <input
-          id="goal"
           type="number"
           value={goal}
-          onChange={(e) => setGoal(Number(e.target.value))}
+          onChange={(e) => setGoal(e.target.value)}
+          onFocus={(e) => e.target.select()}
         />
       </div>
       <div className="result">
@@ -78,11 +93,12 @@ function App() {
               dataKey="year"
               tick={{ fontSize: 12 }}
               tickFormatter={(tick) => `${tick} г.`}
+              interval={screenWidth < 500 ? 4 : 0}
             />
             <YAxis
               tick={{ fontSize: 12 }}
               tickFormatter={(tick) => formatNumber(tick)}
-		width={80}
+              width={80}
             />
             <Tooltip
               formatter={(value) => formatNumber(value) + ' ₽'}
