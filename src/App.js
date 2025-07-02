@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import {
   LineChart,
@@ -13,8 +13,21 @@ function formatNumber(num) {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
+// Функция для правильного склонения лет
+function getYearString(years) {
+  years = parseInt(years);
+  if (isNaN(years)) return 'лет';
+  
+  const lastDigit = years % 10;
+  const lastTwoDigits = years % 100;
+  
+  if (lastDigit === 1 && lastTwoDigits !== 11) return 'год';
+  if ([2, 3, 4].includes(lastDigit) && ![12, 13, 14].includes(lastTwoDigits)) 
+    return 'года';
+  return 'лет';
+}
+
 function App() {
-  // Изменено: начальные значения как строки
   const [monthly, setMonthly] = useState('20000');
   const [goal, setGoal] = useState('1000000');
   const [interestRate, setInterestRate] = useState('10');
@@ -22,18 +35,21 @@ function App() {
   const [chartData, setChartData] = useState([]);
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
 
+  // Обработчик изменения размера окна
+  const handleResize = useCallback(() => {
+    setScreenWidth(window.innerWidth);
+  }, []);
+
   useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [handleResize]);
 
   useEffect(() => {
     calculateYears();
   }, [monthly, goal, interestRate]);
 
   const calculateYears = () => {
-    // Преобразование строк в числа с обработкой пустых значений
     const monthlyNum = monthly === '' ? 0 : Number(monthly);
     const goalNum = goal === '' ? 0 : Number(goal);
     const interestRateNum = interestRate === '' ? 0 : Number(interestRate);
@@ -45,11 +61,28 @@ function App() {
 
     while (total < goalNum && year < 100) {
       total = (total + monthlyNum * 12) * (1 + rate);
-      data.push({ year: year + 1, amount: Math.round(total) });
+      data.push({ 
+        year: year + 1, 
+        amount: Math.round(total),
+        yearLabel: `${year + 1}`
+      });
       year++;
     }
     setYears(year);
     setChartData(data);
+  };
+
+  // Форматирование подписей для оси X
+  const formatXAxisTick = (tick) => {
+    if (screenWidth < 480) return tick; // На мобильных только цифры
+    return `${tick} г.`;
+  };
+
+  // Определение интервала для подписей оси X
+  const getXAxisInterval = () => {
+    if (screenWidth < 480) return 5;
+    if (screenWidth < 768) return 3;
+    return 0;
   };
 
   return (
@@ -83,33 +116,45 @@ function App() {
         />
       </div>
       <div className="result">
-        <p>Вы достигнете цели за {years} {years === 1 ? 'год' : years < 5 ? 'года' : 'лет'}</p>
+        <p>Вы достигнете цели за {years} {getYearString(years)}</p>
       </div>
 
-      <div className="chart-container">
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
+      <div className="chart-container" data-testid="chart-container">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
             <XAxis
               dataKey="year"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(tick) => `${tick} г.`}
-              interval={screenWidth < 500 ? 4 : 0}
+              tickFormatter={formatXAxisTick}
+              interval={getXAxisInterval()}
+              minTickGap={10}
+              angle={screenWidth < 480 ? -45 : 0}
+              tickMargin={10}
+              height={screenWidth < 480 ? 50 : 40}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
               tickFormatter={(tick) => formatNumber(tick)}
-              width={80}
+              width={screenWidth < 480 ? 60 : 80}
+              domain={['auto', 'auto']}
+              allowDataOverflow={true}
             />
             <Tooltip
-              formatter={(value) => formatNumber(value) + ' ₽'}
-              labelFormatter={(label) => `${label} год`}
+              formatter={(value) => [formatNumber(value) + ' ₽', 'Сумма']}
+              labelFormatter={(label) => `${label} ${getYearString(label)}`}
+              contentStyle={{
+                backgroundColor: 'var(--color-accent-bg)',
+                borderColor: 'var(--color-border)',
+                borderRadius: '8px',
+                color: 'var(--color-text)'
+              }}
+              itemStyle={{ color: 'var(--color-result)' }}
             />
             <Line
               type="monotone"
               dataKey="amount"
-              stroke="#FF0000"
+              stroke="var(--color-chart-line)"
               strokeWidth={2}
-              dot={{ r: 2 }}
+              dot={{ r: screenWidth < 480 ? 2 : 3 }}
+              activeDot={{ r: 6 }}
             />
           </LineChart>
         </ResponsiveContainer>
